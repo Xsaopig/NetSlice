@@ -208,14 +208,14 @@ def getserviceip(soc):
         else:
             data += soc.recv(datalen-len(data))
     content = json.loads(data.decode('UTF-8'))
-    return content['serverip']
+    return content['serverip'],content['serverport']
 
 if __name__ == '__main__':
     # 初始化
     ss_soc = socket_bulid(sliip, 5050) # 策略服务器
-    serviceip = getserviceip(ss_soc)
-    print('serviceip = '+serviceip)
-    vid_soc = socket_bulid(serviceip, 8080) # 渲染服务器
+    serviceip,serviceport = getserviceip(ss_soc)
+    print('server = '+serviceip+":"+serviceport)
+    vid_soc = socket_bulid(serviceip, serviceport) # 渲染服务器
     # 预先感知文件长度
     # 开启网络质量监测
     t1 = threading.Thread(target = getspeed)
