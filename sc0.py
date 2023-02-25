@@ -214,7 +214,7 @@ if __name__ == '__main__':
     # 初始化
     ss_soc = socket_bulid(sliip, 5050) # 策略服务器
     serviceip,serviceport = getserviceip(ss_soc)
-    print('server = '+serviceip+":"+serviceport)
+    print('server = '+serviceip+":"+str(serviceport))
     vid_soc = socket_bulid(serviceip, serviceport) # 渲染服务器
     # 预先感知文件长度
     # 开启网络质量监测
