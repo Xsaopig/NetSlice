@@ -82,10 +82,10 @@ def ServerManagement():
                 data += conn.recv(datalen-len(data))
         content = json.loads(data.decode('UTF-8'))
         if content['tp']==0:
-            Serverlist[content['serverip']]=content
-            calCapacity(Serverlist[content['serverip']],0.5,500)
+            Serverlist[content['hostname']]=content
+            calCapacity(Serverlist[content['hostname']],0.5,500)
         elif content['tp']==1:
-            Serverlist.pop(content['serverip'])
+            Serverlist.pop(content['hostname'])
         print(Serverlist)
     
 #计算资源容量
@@ -93,14 +93,15 @@ def calCapacity(Server, w1, w2):
     Server['Capacity'] = w1 * Server['BandWidth'] + w2 * Server['Connections']
 
 #找资源容量最小的服务器
-def getminCapip():
-    minCap = -1
-    res = ''
-    for ip,Server in Serverlist.items():
-        if minCap > Server['Capacity'] or minCap == -1:
-            minCap = Server['Capacity']
-            res = ip
-    return res
+def getmaxCapip():
+    maxCap = 0
+    resip,resport = '',''
+    for _,Server in Serverlist.items():
+        if maxCap < Server['Capacity']:
+            maxCap = Server['Capacity']
+            resip = Server['serverip']
+            resport = Server['serverport']
+    return resip,resport
 
 # 处理用户请求的函数（做出决策）
 def dealReq(conn, addr): # 通过conn操作该socket，addr是(ip, port)
@@ -177,15 +178,13 @@ def dealReq(conn, addr): # 通过conn操作该socket，addr是(ip, port)
                     if sliceband > 6:
                         sliceband = 4 
 
-                # os.system('./show.sh')
-                # print('执行命令：'+'./fine_slice.sh' + ' ' + str(g_tcflowid) + ' ' + str(poss) + ' ' + str(sliceband) + ' ' + str(ipfrom))
-                # os.system('./fine_slice.sh' + ' ' + str(g_tcflowid) + ' ' + str(poss) + ' ' + str(sliceband) + ' ' + str(ipfrom))
+
                 print(f'为 {ipfrom} 设置优先级{poss}带宽{sliceband}的切片,id为{g_tcflowid}')
-                # os.system('./show.sh')
                 print('-'*40)
 
                 agent_msg='./fine_slice.sh' + ' ' + str(g_tcflowid) + ' ' + str(poss) + ' ' + str(sliceband) + ' ' + str(ipfrom)
-                sentmsgtoagent(serviceip,agent_msg)
+                agent_port = 8081
+                sentmsgtoagent(serviceip,agent_msg,agent_port)
 
 
 
@@ -248,8 +247,8 @@ def dealReq(conn, addr): # 通过conn操作该socket，addr是(ip, port)
                 break
             
             elif tp == 3: #用户请求接入
-                mincapip = getminCapip()
-                msg = json.dumps({'serverip':mincapip})
+                maxCapip,maxCapport = getmaxCapip()
+                msg = json.dumps({'serverip':maxCapip,'serverport':maxCapport})
                 conn.send(struct.pack('i', len(msg)))
                 conn.sendall(msg.encode('UTF-8'))
 
