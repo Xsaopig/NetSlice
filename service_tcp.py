@@ -21,7 +21,7 @@ sli_ip = '192.168.123.149'
 sli_port = 5051
 MaxBandWidth = 35000 #kbps
 MaxConnections = 10 #最大连接数
-Content = {'serverip':hostip, 'BandWidth':MaxBandWidth, 'Connections':MaxConnections, 'tp': 0}
+Content = {'serverip':hostip, 'BandWidth':MaxBandWidth, 'Connections':MaxConnections, 'tp': 0, 'serverport':lisvidport, 'hostname':'master'}
 
 # 建立socket通信
 def socket_bulid(ipaddr, port):
