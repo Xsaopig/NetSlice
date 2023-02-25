@@ -1,0 +1,7 @@
+##service_tcp.py
+opencv-python-headless
+imutils
+
+##sli.py
+pandas
+tensorflow
