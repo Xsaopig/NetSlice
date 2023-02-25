@@ -1,0 +1,19 @@
+@startuml
+'https://plantuml.com/class-diagram
+class SimUser {
++{static}REQ_DEFAULT : int
++{static}REQ_REQ1 : int
++{static}REQ_REQ2 : int
++{static}REQ_REQ3 : int
+- int appType
+- Map<String, Integer> app_req
+
++ SimUser()
++ setAppType()
++ getAppType()
++ setUser()
++ get_req_model()
+}
+
+
+@enduml
