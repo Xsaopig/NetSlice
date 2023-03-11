@@ -20,8 +20,11 @@ pllist = []
 
 is_slice = 0
 
-serviceip = ''
+serviceip,servername = '',''
+serviceport = 8080
+
 sliip = "192.168.123.149"
+sliceid = -1
 
 recvcount = 0.0 # 统计速率
 DEBUG = 1
@@ -130,7 +133,7 @@ def sendToSli(ssl):
         # print(f'{len(speedlist)}, {len(delaylist)}, {len(jitlist)}, {len(pllist)}')
         print(speedlist)
 
-        Content = {'type':tp, 'BandWidth':speedlist, 'Delay': delaylist,'Jitter':jitlist, 'PacketLoss':[pl], 'req':req, 'serviceip':serviceip}
+        Content = {'type':tp, 'BandWidth':speedlist, 'Delay': delaylist,'Jitter':jitlist, 'PacketLoss':[pl], 'req':req, 'serviceip':serviceip,'servicename':servername,'serviceport':serviceport,'sliceid':sliceid}
         msg = json.dumps(Content)
         ssl.send(struct.pack('i', len(msg)))
         ssl.sendall(msg.encode('UTF-8'))
@@ -173,7 +176,10 @@ def video_stream(video_socket): # 接收视频流 UDP
         key = cv2.waitKey(1) & 0xFF
 
         if key == ord('q'):
-            ss_soc.sendall('type=2'.encode())
+            Content = {'type':2, 'serviceip':serviceip,'servicename':servername,'serviceport':serviceport}
+            msg = json.dumps(Content)
+            ss_soc.send(struct.pack('i', len(msg)))
+            ss_soc.sendall(msg.encode('UTF-8'))
             time.sleep(0.1)
             g_th_flag = False   
             video_socket.close()
@@ -208,12 +214,14 @@ def getserviceip(soc):
         else:
             data += soc.recv(datalen-len(data))
     content = json.loads(data.decode('UTF-8'))
-    return content['serverip'],content['serverport']
+    global sliceid
+    sliceid = content['sliceid']
+    return content['serverip'],content['serverport'],content['servername']
 
 if __name__ == '__main__':
     # 初始化
     ss_soc = socket_bulid(sliip, 5050) # 策略服务器
-    serviceip,serviceport = getserviceip(ss_soc)
+    serviceip,serviceport,servername = getserviceip(ss_soc)
     print('server = '+serviceip+":"+str(serviceport))
     vid_soc = socket_bulid(serviceip, serviceport) # 渲染服务器
     # 预先感知文件长度
