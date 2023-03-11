@@ -8,7 +8,7 @@ tc qdisc del dev ens33 root
 tc qdisc add dev ens33 root handle 1: htb default 1
 
 # 创建一个主分类绑定所有带宽资源
-tc class add dev ens33 parent 1:0 classid 1:1 htb rate 35Mbit ceil 35Mbit
+tc class add dev ens33 parent 1:0 classid 1:1 htb rate $1Mbit ceil $1Mbit
 
 # 全面初始化为默认类型
 tc filter add dev ens33 protocol ip parent 1:0 prio 7 u32 match ip dst 0.0.0.0/0 flowid 1:2

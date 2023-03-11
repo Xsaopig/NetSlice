@@ -13,15 +13,17 @@ from threading import Thread
 import queue
 import os
 import json
+from service_agent import agent_start
 
 hostip = '192.168.133.100'
-lisvidport = 8080
+lisvidport,agent_port = 8080,8081
 filename = './video/vedio.mp4'
 sli_ip = '192.168.123.149'
 sli_port = 5051
-MaxBandWidth = 35000 #kbps
-MaxConnections = 10 #最大连接数
-Content = {'serverip':hostip, 'BandWidth':MaxBandWidth, 'Connections':MaxConnections, 'tp': 0, 'serverport':lisvidport, 'hostname':'master'}
+MaxBandWidth = 6*1024 #kbps
+MaxConnections = 3 #最大连接数
+Content = {'serverip':hostip, 'BandWidth':MaxBandWidth, 'Connections':MaxConnections, 'tp': 0, 'serverport':lisvidport, 'hostname':'master','serveragentport':8081,
+        'tc_flowid':3,'userBandwidth':{},'Slices':[]}
 
 # 建立socket通信
 def socket_bulid(ipaddr, port):
@@ -126,6 +128,7 @@ def video_stream(cl_socket, client_addr, qNew, video):
 
 
 if __name__ == "__main__":
+    Thread(target=agent_start, args=(hostip,agent_port,MaxBandWidth/1024,)).start()
     res = registerOrlogout(Content,sli_ip,sli_port)
     if res == False:
         print('向SLI注册失败')
