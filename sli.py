@@ -62,7 +62,7 @@ def init_serverport():
     return socketServer
 
 
-# 等待服务器注册
+# 服务器管理
 def ServerManagement():
     global Serverlist
     registerSoc = init_serverport()
@@ -81,10 +81,10 @@ def ServerManagement():
             else:
                 data += conn.recv(datalen-len(data))
         content = json.loads(data.decode('UTF-8'))
-        if content['tp']==0:
+        if content['tp']==0:#服务器注册/修改配置
             Serverlist[content['hostname']]=content
             calCapacity(Serverlist[content['hostname']],0.5,500)
-        elif content['tp']==1:
+        elif content['tp']==1:#服务器注销
             Serverlist.pop(content['hostname'])
         print(Serverlist)
     
@@ -92,16 +92,17 @@ def ServerManagement():
 def calCapacity(Server, w1, w2):
     Server['Capacity'] = w1 * Server['BandWidth'] + w2 * Server['Connections']
 
-#找资源容量最小的服务器
+#找资源容量最大的服务器
 def getmaxCapip():
     maxCap = 0
-    resip,resport = '',''
+    resip,resport,resname = '','',''
     for _,Server in Serverlist.items():
         if maxCap < Server['Capacity']:
             maxCap = Server['Capacity']
             resip = Server['serverip']
             resport = Server['serverport']
-    return resip,resport
+            resname = Server['hostname']
+    return resip,resport,resname
 
 # 处理用户请求的函数（做出决策）
 def dealReq(conn, addr): # 通过conn操作该socket，addr是(ip, port)
@@ -125,11 +126,9 @@ def dealReq(conn, addr): # 通过conn操作该socket，addr是(ip, port)
             
             
             if tp == 1:#建立切片
-                req, band, pack, delay, jitter, serviceip = \
-                    content['req'], content['BandWidth'], content['PacketLoss'], content['Delay'], content['Jitter'], content['serviceip']
-                jitter = list(map(float,jitter))
-                delay = list(map(float,delay))
-
+                req, band, pack, delay, jitter, serviceip,servicename,serviceport = \
+                    content['req'], content['BandWidth'], content['PacketLoss'], content['Delay'], content['Jitter'], content['serviceip'], content['servicename'], content['serviceport']
+                jitter,delay = list(map(float,jitter)),list(map(float,delay))
                 bandfor = band # 暂存一下拿来预测
                 band = sutil.average(band, 5) # 5s合一
                 delay = sutil.average(delay, 5)
@@ -165,7 +164,6 @@ def dealReq(conn, addr): # 通过conn操作该socket，addr是(ip, port)
                 max_f_band = np.max(forecastRes)
                 forecastRes.remove(min_f_band)
                 forecastRes.remove(max_f_band)
-
                 max_f_band = np.max(forecastRes)
                 mean_f_band = np.mean(forecastRes)
                 sliceband = round((mean_f_band/3 + max_f_band*2/3), 1)
@@ -178,22 +176,16 @@ def dealReq(conn, addr): # 通过conn操作该socket，addr是(ip, port)
                     if sliceband > 6:
                         sliceband = 4 
 
-
                 print(f'为 {ipfrom} 设置优先级{poss}带宽{sliceband}的切片,id为{g_tcflowid}')
                 print('-'*40)
-
                 agent_msg='./fine_slice.sh' + ' ' + str(g_tcflowid) + ' ' + str(poss) + ' ' + str(sliceband) + ' ' + str(ipfrom)
                 agent_port = 8081
                 sentmsgtoagent(serviceip,agent_msg,agent_port)
 
-
-
                 g_addr_slicetime[ipfrom] = len(band)
-
                 # 更新结果
                 g_addr_flowid[ipfrom] = g_tcflowid # 更新全局flowid
                 g_tcflowid += 1
-
                 g_sliaddr[poss].append(ipfrom) # 在该优先级的addrlist中加入该addr
                 g_slires[poss] = g_slires[poss] + sliceband # 更新该优先级使用带宽的结果
                 g_bandinuse += sliceband # 加上新占用的带宽
@@ -247,8 +239,8 @@ def dealReq(conn, addr): # 通过conn操作该socket，addr是(ip, port)
                 break
             
             elif tp == 3: #用户请求接入
-                maxCapip,maxCapport = getmaxCapip()
-                msg = json.dumps({'serverip':maxCapip,'serverport':maxCapport})
+                maxCapip,maxCapport,maxCapServername = getmaxCapip()
+                msg = json.dumps({'serverip':maxCapip,'serverport':maxCapport,'servername':maxCapServername})
                 conn.send(struct.pack('i', len(msg)))
                 conn.sendall(msg.encode('UTF-8'))
 

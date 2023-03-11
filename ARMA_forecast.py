@@ -17,7 +17,7 @@ def forecast(data, length):
         length = len(data) - 1
     data_d = np.diff(data)
     time_series = pd.Series(data_d)
-    # model = ARMA(time_series, (0, 1)).fit() #这个模型好像已经被取代了
+    # model = ARMA(time_series, (0, 1)).fit() #这个模型好像已经用不了了
     model = ARIMA(endog=time_series,order=(0,1,1)).fit()
 
     answer = model.forecast(length)
