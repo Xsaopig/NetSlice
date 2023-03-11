@@ -11,7 +11,7 @@ import sys, getopt
 # data是历史带宽数据，length是预测未来时间长度
 def forecast(data, length): 
     # print('-'*20, 'IGNORE THIS WARNING', '-'*20)
-    data = [round(x/1000, 4) for x in data] # 转换为保留4位的Mbit 输入应该是Kbps！
+    data = [round(x/1024, 4) for x in data] # 转换为保留4位的Mbit 输入应该是Kbps！
     if len(data) == 0:
         data = [3.1, 3.2, 3.1, 3.2, 3.1, 3.2, 3.4, 3.5, 3.2, 3.3]
         length = len(data) - 1
