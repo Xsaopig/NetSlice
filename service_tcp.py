@@ -20,9 +20,9 @@ lisvidport,agent_port = 8080,8081
 filename = './video/vedio.mp4'
 sli_ip = '192.168.123.149'
 sli_port = 5051
-MaxBandWidth = 6*1024 #kbps
+MaxBandWidth = 60*1024 #kbps
 MaxConnections = 3 #最大连接数
-Content = {'serverip':hostip, 'BandWidth':MaxBandWidth, 'Connections':MaxConnections, 'tp': 0, 'serverport':lisvidport, 'hostname':'master','serveragentport':8081,
+Content = {'serverip':'192.168.123.149', 'BandWidth':MaxBandWidth, 'Connections':MaxConnections, 'tp': 0, 'serverport':50000, 'hostname':'master','serveragentport':50010,
         'tc_flowid':3,'userBandwidth':{},'Slices':[]}
 
 # 建立socket通信
