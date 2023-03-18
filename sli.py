@@ -70,15 +70,16 @@ def ServerManagement():
     
 #计算资源容量
 def calCapacity(Server, w1, w2):
-    if Server['BandWidth']<=0 or Server['Connections']<=0:
-        Server['Capacity'] = 0
-    else:
-        Server['Capacity'] = w1 * Server['BandWidth'] + w2 * Server['Connections']
+    Server['Capacity'] = w1 * Server['BandWidth'] + w2 * Server['Connections']
+    # if Server['BandWidth']<=0 or Server['Connections']<=0:
+    #     Server['Capacity'] = 0
+    # else:
+    #     Server['Capacity'] = w1 * Server['BandWidth'] + w2 * Server['Connections']
 
 #找资源容量最大的服务器
 def getmaxCapip():
     updateAllServerCap()
-    maxCap = 0
+    maxCap = -2147483648
     resip,resport,resname = '','',''
     for _,Server in Serverlist.items():
         if maxCap < Server['Capacity']:
@@ -116,6 +117,8 @@ def dealReq(conn, addr): # 通过conn操作该socket，addr是(ip, port)
                 req, band, pack, delay, jitter, serviceip,servicename,serviceport,usersliceid = \
                     content['req'], content['BandWidth'], content['PacketLoss'], content['Delay'], content['Jitter'], content['serviceip'], content['servicename'], content['serviceport'],content['sliceid']
                 jitter,delay = list(map(float,jitter)),list(map(float,delay))
+                userip,userport = content['userip'],content['userport']
+
                 # 预处理,计算Qoe
                 bandfor = band # 暂存一下拿来预测
                 band = sutil.average(band, 5) # 5s合一
@@ -145,23 +148,26 @@ def dealReq(conn, addr): # 通过conn操作该socket，addr是(ip, port)
                 tc_flowid = Server['tc_flowid']
                 Server['tc_flowid'] += 1
                 sliceband *= 1024
-                if Server['BandWidth'] < sliceband :
-                    sliceband = Server['BandWidth']
+                # if Server['BandWidth'] < sliceband :
+                #     sliceband = Server['BandWidth']
                 Server['BandWidth'] -= sliceband 
                 sliceband /= 1024
-                if ipfrom in Server['userBandwidth'].keys():
-                    Server['userBandwidth'][ipfrom] += sliceband
-                Slice = {'sliceid':usersliceid,'userip':ipfrom,'tc_flowid':tc_flowid,'sliceband':sliceband,'poss':poss,'lastConnectTime':0,'req':req}
+                if userip in Server['userBandwidth'].keys():
+                    Server['userBandwidth'][userip] += sliceband
+                else:
+                    Server['userBandwidth'][userip] = sliceband
+                Slice = {'sliceid':usersliceid,'userip':userip,'userport':userport,'tc_flowid':tc_flowid,'sliceband':sliceband,'poss':poss,'lastConnectTime':0,'req':req}
                 Server['Slices'].append(Slice)
                 # 设置服务器tc切片
-                agent_msg = f'./fine_slice.sh {tc_flowid} {poss} {sliceband} {ipfrom}'
+                agent_msg = f'./fine_slice.sh {tc_flowid} {poss} {sliceband} {userip} {userport}'
                 sentmsgtoagent(hostname = servicename,msg = agent_msg)
-                print(f'为节点{servicename}设置对ip:{ipfrom}优先级{poss}带宽{sliceband}的切片,id为{tc_flowid}')
+                print(f'为节点{servicename}设置对ip:{userip}端口:{userport}优先级{poss}带宽{sliceband}的切片,flowid为{tc_flowid}')
             elif tp == 0: # 已建立切片后终端传的内容 主要是更新QoE
                 # 读取用户发送的数据
                 req, band, pack, delay, jitter, serviceip,servicename,serviceport,usersliceid = \
                     content['req'], content['BandWidth'], content['PacketLoss'], content['Delay'], content['Jitter'], content['serviceip'], content['servicename'], content['serviceport'],content['sliceid']
                 jitter,delay = list(map(float,jitter)),list(map(float,delay))
+                userip,userport = content['userip'],content['userport']
                 # 预处理，计算Qoe
                 band = sutil.average(band, 5) # 5s合一
                 delay = sutil.average(delay, 5)
@@ -181,8 +187,9 @@ def dealReq(conn, addr): # 通过conn操作该socket，addr是(ip, port)
                     if slice['sliceid'] == usersliceid:
                         # 将该用户的qoe和网络变化情况都记录下来
                         req,poss,sliceband = slice['req'],slice['poss'],slice['sliceband']
-                        print(f'释放节点{servicename}对用户{ipfrom}切片(id:{usersliceid})： 需求类型:{req}，切片优先级:{poss}, 切片带宽:{sliceband}')
-                        resolveSlice(servicename,ipfrom,usersliceid)
+                        userip,userport = slice['userip'],slice['userport']
+                        print(f'释放节点{servicename}对用户{userip}:{userport}切片(id:{usersliceid})： 需求类型:{req}，切片优先级:{poss}, 切片带宽:{sliceband}')
+                        resolveSlice(servicename,userip,userport,usersliceid)
                         break     
             elif tp == 3: #用户请求接入
                 global sliceid
@@ -194,21 +201,22 @@ def dealReq(conn, addr): # 通过conn操作该socket，addr是(ip, port)
                 print(Serverlist)
                 print(f'为用户{ipfrom}分配服务节点{maxCapServername},切片id：{sliceid}')
         except ConnectionResetError:
-#            resolveSlice(ipfrom)
+#            resolveSlice(userip)
             conn.close()
             break
 
 # 释放切片资源，并记录该切片实例用不上了。
-def resolveSlice(hostname,ipfrom,sliceid):
+def resolveSlice(hostname,userip,userport,sliceid):
     Server = Serverlist[hostname]
     for i,slice in enumerate(Server['Slices']):
         if slice['sliceid']==sliceid:#找到对应切片
             Server['Connections'] += 1
             Server['BandWidth'] += slice['sliceband'] * 1000
-            Server['userBandwidth'][ipfrom] -= slice['sliceband']
+            Server['userBandwidth'][userip] -= slice['sliceband']
+            poss = slice['poss']
             tc_flowid = slice['tc_flowid']
-            agent_msg='./fine_delFilter.sh' + ' ' + str(tc_flowid) + ' ' + str(ipfrom)
-            sentmsgtoagent(hostname,agent_msg)
+            agent_msg='./fine_delFilter.sh' + ' ' + str(poss) + ' ' + str(userip) + ' ' + str(userport)
+            sentmsgtoagent(hostname=hostname,msg=agent_msg)
             del Server['Slices'][i]
             break
 
@@ -218,14 +226,15 @@ def monitor_con():
     while 1:
         time.sleep(1)
         for hostname in Serverlist:
-            for slice in Serverlist[hostname]['Slices']:
+            for i,slice in enumerate(Serverlist[hostname]['Slices']):
                 slice['lastConnectTime'] += 1
-                if slice['lastConnectTime'] > 60: # 暂时认为150s+未发送信息的已经断开应用
-                    toresolve.append([hostname,slice['userip'],slice['sliceid']])
+                if slice['lastConnectTime'] > 30: # 暂时认为150s+未发送信息的已经断开应用
+                    toresolve.append([hostname,slice['userip'],slice['userport'],slice['sliceid']])
         for i in toresolve:
-            print(f'超时删除，节点{i[0]}用户{i[1]}切片id{i[2]}')
-            resolveSlice(i[0],i[1],i[2])
-    toresolve.clear()
+            print(f'超时删除，节点{i[0]}用户{i[1]}:{i[2]}切片id为{i[3]}')
+            resolveSlice(i[0],i[1],i[2],i[3])
+        toresolve.clear()
+    
 
 #向hostname服务器代理发送消息msg
 def sentmsgtoagent(hostname,msg):
