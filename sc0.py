@@ -118,9 +118,9 @@ def caljit(): # 存的是str形式
 
 
 # 和策略服务器定时通信（目前实验全需要切片）。req是需求类型，tp表示是建立切片的发送还是已建立切片只上传qoe的
-def sendToSli(ssl):
+def sendToSli(ssl,userip,userport):
+    req = getreq(1080, 60, 0) # 需求低带宽低延迟类型2
     # req = getreq(720, 30, 0) # 需求低带宽低延迟类型2
-    req =3
     global speedlist, delaylist, jitlist, pllist
     tp = 1
     while g_th_flag:
@@ -133,7 +133,7 @@ def sendToSli(ssl):
         # print(f'{len(speedlist)}, {len(delaylist)}, {len(jitlist)}, {len(pllist)}')
         print(speedlist)
 
-        Content = {'type':tp, 'BandWidth':speedlist, 'Delay': delaylist,'Jitter':jitlist, 'PacketLoss':[pl], 'req':req, 'serviceip':serviceip,'servicename':servername,'serviceport':serviceport,'sliceid':sliceid}
+        Content = {'type':tp, 'BandWidth':speedlist, 'Delay': delaylist,'Jitter':jitlist, 'PacketLoss':[pl], 'req':req, 'serviceip':serviceip,'servicename':servername,'serviceport':serviceport,'sliceid':sliceid,'userip':userip,'userport':userport}
         msg = json.dumps(Content)
         ssl.send(struct.pack('i', len(msg)))
         ssl.sendall(msg.encode('UTF-8'))
@@ -147,7 +147,7 @@ def sendToSli(ssl):
             tp = 0
 
 # 和渲染服务器通信的函数
-def video_stream(video_socket): # 接收视频流 UDP
+def video_stream(video_socket,userip,userport): # 接收视频流 UDP
     global recvcount, g_th_flag # 统计带宽
     cv2.namedWindow('RECEIVING VIDEO')        
     cv2.moveWindow('RECEIVING VIDEO', 10,360) 
@@ -176,7 +176,7 @@ def video_stream(video_socket): # 接收视频流 UDP
         key = cv2.waitKey(1) & 0xFF
 
         if key == ord('q'):
-            Content = {'type':2, 'serviceip':serviceip,'servicename':servername,'serviceport':serviceport}
+            Content = {'type':2, 'serviceip':serviceip,'servicename':servername,'serviceport':serviceport,'userip':userip,'userport':userport}
             msg = json.dumps(Content)
             ss_soc.send(struct.pack('i', len(msg)))
             ss_soc.sendall(msg.encode('UTF-8'))
@@ -224,6 +224,7 @@ if __name__ == '__main__':
     serviceip,serviceport,servername = getserviceip(ss_soc)
     print('server = '+serviceip+":"+str(serviceport))
     vid_soc = socket_bulid(serviceip, serviceport) # 渲染服务器
+    userip,userport = vid_soc.getsockname()[0],vid_soc.getsockname()[1]
     # 预先感知文件长度
     # 开启网络质量监测
     t1 = threading.Thread(target = getspeed)
@@ -235,8 +236,8 @@ if __name__ == '__main__':
 
     # 进入通信
     try:
-        t3 = threading.Thread(target = video_stream, args=(vid_soc, ))
-        t4 = threading.Thread(target = sendToSli, args=(ss_soc, ))
+        t3 = threading.Thread(target = video_stream, args=(vid_soc,userip,userport, ))
+        t4 = threading.Thread(target = sendToSli, args=(ss_soc,userip,userport, ))
         # t3.setDaemon(True)
         # t4.setDaemon(True)
         t3.start()
