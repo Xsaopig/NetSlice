@@ -22,6 +22,7 @@ is_slice = 0
 
 serviceip,servername = '',''
 serviceport = 8080
+sli_g_port = 5050
 
 sliip = "192.168.123.149"
 sliceid = -1
@@ -96,7 +97,7 @@ def getother():
         pllist.append(los)
         if(len(pllist) > 120):
             pllist.pop(0)
-        # print(f'los:{los}') 
+        print(f'los:{los}') 
         # 读取时延
         dlstart = '平均 = '
         dls = result.find(dlstart)
@@ -105,7 +106,7 @@ def getother():
         delaylist.append(dl)
         if(len(delaylist) > 120):
             delaylist.pop(0)
-        # print(f'delay:{dl}') 
+        print(f'delay:{dl}') 
 # 网络测量函数3：计算抖动
 def caljit(): # 存的是str形式
     global jitlist, delaylist
@@ -168,7 +169,7 @@ def video_stream(video_socket,userip,userport): # 接收视频流 UDP
         frame_data = data[:msg_size]
         data  = data[msg_size:]
         viddata = base64.b64decode(frame_data,' /')
-        npdata = np.fromstring(viddata, dtype=np.uint8)
+        npdata = np.frombuffer(viddata, dtype=np.uint8)
 
         frame = cv2.imdecode(npdata,1)
         frame = cv2.putText(frame,'FPS: '+str(fps),(10,40),cv2.FONT_HERSHEY_SIMPLEX,0.7,(0,0,255),2)
@@ -220,7 +221,7 @@ def getserviceip(soc):
 
 if __name__ == '__main__':
     # 初始化
-    ss_soc = socket_bulid(sliip, 5050) # 策略服务器
+    ss_soc = socket_bulid(sliip, sli_g_port) # 策略服务器
     serviceip,serviceport,servername = getserviceip(ss_soc)
     print('server = '+serviceip+":"+str(serviceport))
     vid_soc = socket_bulid(serviceip, serviceport) # 渲染服务器
