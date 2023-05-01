@@ -17,13 +17,14 @@ import numpy as np
 import sliceUtil as sutil
 import struct
 
+
 # 默认优先级为2和6两种，尊贵的客户为1和5（越小越优先）
 # tc工具的flowid分配，从3开始
 
 # # 由于tc工具的class没法删除，因此当新的用户需求符合该切片时，可将该flowid对于的切片复用。
 # g_sliceRemain = {} # key是prio，value是[band, flowid]的list
 
-hostip = '192.168.123.149'
+hostip = socket.gethostbyname(socket.gethostname())
 g_port = 5050
 server_port = 5051
 DEBUG = 1
@@ -128,30 +129,34 @@ def dealReq(conn, addr): # 通过conn操作该socket，addr是(ip, port)
                 qoelist = QoEcal.get_QoE(band, delay, jitter, pack, req)
                 # 现在是带宽预测结和按需匹配优先级的策略：
                 poss = 6
-                forecastRes = ARMA_forecast.forecast(bandfor, len(bandfor) - 1) # 得到预测的20s带宽
-                min_f_band,max_f_band = np.min(forecastRes),np.max(forecastRes)
-                forecastRes.remove(min_f_band)
-                forecastRes.remove(max_f_band)
-                max_f_band,mean_f_band = np.max(forecastRes),np.mean(forecastRes)
-                sliceband = round((mean_f_band/3 + max_f_band*2/3), 1)
+                # forecastRes = ARMA_forecast.forecast(bandfor, len(bandfor) - 1) # 得到预测的20s带宽
+                # min_f_band,max_f_band = np.min(forecastRes),np.max(forecastRes)
+                # forecastRes.remove(min_f_band)
+                # forecastRes.remove(max_f_band)
+                # max_f_band,mean_f_band = np.max(forecastRes),np.mean(forecastRes)
+                # sliceband = round((mean_f_band/3 + max_f_band*2/3), 1)
+                forecastRes = ARMA_forecast.forecast(bandfor, 1) # 得到预测的1s带宽
+                sliceband = round((np.max(bandfor)*1000/(1024*1024)/2 + forecastRes[0]/2), 1)
                 if req == 2 or req == 3:
                     poss = 2
                 if req == 1 or req == 3:
-                    if sliceband < 28: # 切片之前的可能和实际需求差距较大，后面调整。
-                        sliceband = 33
+                    if sliceband < 22: # 切片之前的可能和实际需求差距较大，后面调整。
+                        sliceband = 22
+                        pass
                 elif req == 0 or req == 2:
-                    if sliceband > 6:
-                        sliceband = 4 
+                    if sliceband > 15:
+                        sliceband = 15 
+                        pass
                 #更新服务节点列表和切片列表
                 Server = Serverlist[servicename]
                 Server['Connections'] -= 1
                 tc_flowid = Server['tc_flowid']
                 Server['tc_flowid'] += 1
-                sliceband *= 1024
+                sliceband *= (1024*1024/1000)
                 # if Server['BandWidth'] < sliceband :
                 #     sliceband = Server['BandWidth']
                 Server['BandWidth'] -= sliceband 
-                sliceband /= 1024
+                sliceband /= (1024*1024/1000)
                 if userip in Server['userBandwidth'].keys():
                     Server['userBandwidth'][userip] += sliceband
                 else:
@@ -228,7 +233,7 @@ def monitor_con():
         for hostname in Serverlist:
             for i,slice in enumerate(Serverlist[hostname]['Slices']):
                 slice['lastConnectTime'] += 1
-                if slice['lastConnectTime'] > 30: # 暂时认为150s+未发送信息的已经断开应用
+                if slice['lastConnectTime'] > 30: # 暂时认为30s+未发送信息的已经断开应用
                     toresolve.append([hostname,slice['userip'],slice['userport'],slice['sliceid']])
         for i in toresolve:
             print(f'超时删除，节点{i[0]}用户{i[1]}:{i[2]}切片id为{i[3]}')

@@ -7,25 +7,28 @@ import pandas as pd
 import numpy as np
 from statsmodels.tsa.arima.model import ARIMA
 import sys, getopt
+from c_Arima import Arima
 
 # data是历史带宽数据，length是预测未来时间长度
 def forecast(data, length): 
     # print('-'*20, 'IGNORE THIS WARNING', '-'*20)
-    data = [round(x/1024, 4) for x in data] # 转换为保留4位的Mbit 输入应该是Kbps！
+    data = [round(x*1000/(1024*1024), 4) for x in data] # 转换为保留4位的Mbit 输入应该是kbps！
     if len(data) == 0:
         data = [3.1, 3.2, 3.1, 3.2, 3.1, 3.2, 3.4, 3.5, 3.2, 3.3]
         length = len(data) - 1
-    data_d = np.diff(data)
-    time_series = pd.Series(data_d)
-    # model = ARMA(time_series, (0, 1)).fit() #这个模型好像已经用不了了
-    model = ARIMA(endog=time_series,order=(0,1,1)).fit()
 
-    answer = model.forecast(length)
-    result = data[-length:-1]
-    mean = answer.mean()
-    result = [val+mean for val in result]
-    # print('-'*20, 'IGNORE THIS WARNING', '-'*20)
-    # print('Forecast result:', result)
+    # data_d = np.diff(data)
+    # time_series = pd.Series(data_d)
+    # # model = ARMA(time_series, (0, 1)).fit() # 直接用ARIMA模型
+    # model = ARIMA(endog=time_series,order=(1,0,1)).fit()
+    # answer = model.forecast(length)
+    # result = data[-length:]
+    # mean = answer.mean()
+    # result = [val+mean for val in result]
+    # result = [round(x, 1) for x in result] # 转换为保留1位的Mbit
+
+    model = Arima()
+    result = model.forecast(data,0,1,length)
     result = [round(x, 1) for x in result] # 转换为保留1位的Mbit
     return result
 
