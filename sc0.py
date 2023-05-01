@@ -20,6 +20,8 @@ pllist = []
 
 is_slice = 0
 
+videoname = 'video.mp4'
+
 serviceip,servername = '',''
 serviceport = 8080
 sli_g_port = 5050
@@ -66,13 +68,20 @@ def getreq(resol, fps, gametype):
             return 1
     return -1
 
+def getReq(videoname):
+    if videoname == 'video2.mp4':
+        return getreq(720,30,0)
+    elif videoname == 'video.mp4':
+        return getreq(1080,60,0)
+    return getreq(1080,60,0)
+
 # 网络测量模块：
 # 函数1：测量带宽(kbps)
 def getspeed():
     global recvcount, speedlist # 存的是float形式
     time.sleep(1) # 先让渲染通信进入正常状态
     while g_th_flag:
-        recvcount = 0.0
+        recvcount = 0.0     #字节数
         time.sleep(1)
         recvcount = recvcount / 1000 * 8 #速率领域的kbps似乎是1000进制！
         speedlist.append(recvcount)
@@ -120,8 +129,11 @@ def caljit(): # 存的是str形式
 
 # 和策略服务器定时通信（目前实验全需要切片）。req是需求类型，tp表示是建立切片的发送还是已建立切片只上传qoe的
 def sendToSli(ssl,userip,userport):
-    req = getreq(1080, 60, 0) # 需求低带宽低延迟类型2
-    # req = getreq(720, 30, 0) # 需求低带宽低延迟类型2
+    # req = getreq(1080, 60, 0) # 需求高带宽非低延迟类型
+    # req = getreq(1080, 60, 1) # 需求高带宽低延迟类型
+    # req = getreq(720, 30, 0) # 需求低带宽非低延迟类型
+    # req = getreq(720, 30, 1) # 需求低带宽低延迟类型
+    req = getReq(videoname)
     global speedlist, delaylist, jitlist, pllist
     tp = 1
     while g_th_flag:
@@ -225,6 +237,12 @@ if __name__ == '__main__':
     serviceip,serviceport,servername = getserviceip(ss_soc)
     print('server = '+serviceip+":"+str(serviceport))
     vid_soc = socket_bulid(serviceip, serviceport) # 渲染服务器
+
+    Content = videoname
+    msg = json.dumps(Content)
+    vid_soc.send(struct.pack('i', len(msg)))
+    vid_soc.sendall(msg.encode('UTF-8'))
+
     userip,userport = vid_soc.getsockname()[0],vid_soc.getsockname()[1]
     # 预先感知文件长度
     # 开启网络质量监测
